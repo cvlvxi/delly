@@ -51,6 +51,8 @@ namespace torali
   // Config arguments
   struct Config {
     bool islr;
+    bool shouldSubSampleReads;
+    int ignoreEveryXReads;
     uint16_t minMapQual;
     uint16_t minTraQual;
     uint16_t minGenoQual;
@@ -223,6 +225,7 @@ namespace torali
       ("min-clique-size,z", boost::program_options::value<uint32_t>(&c.minCliqueSize)->default_value(2), "min. PE/SR clique size")
       ("minrefsep,m", boost::program_options::value<uint32_t>(&c.minRefSep)->default_value(25), "min. reference separation")
       ("maxreadsep,n", boost::program_options::value<uint32_t>(&c.maxReadSep)->default_value(40), "max. read separation")
+      ("ignoreEveryXReads,i",boost::program_options::value<int>(&c.ignoreEveryXReads)->default_value(0), "Ignore every X reads")
       ;
     
     boost::program_options::options_description geno("Genotyping options");
@@ -251,7 +254,6 @@ namespace torali
     boost::program_options::variables_map vm;
     boost::program_options::store(boost::program_options::command_line_parser(argc, argv).options(cmdline_options).positional(pos_args).run(), vm);
     boost::program_options::notify(vm);
-    
 
     // Check command line arguments
     if ((vm.count("help")) || (!vm.count("input-file")) || (!vm.count("genome"))) { 
@@ -259,6 +261,20 @@ namespace torali
       std::cout << "Usage: delly " << argv[0] << " [OPTIONS] -g <ref.fa> <sample1.sort.bam> <sample2.sort.bam> ..." << std::endl;
       std::cout << visible_options << "\n";
       return 0;
+    }
+
+    c.shouldSubSampleReads = false;
+
+    if (c.ignoreEveryXReads < 0) {
+      std::cerr << "Error: ignoreEveryXReads should be higher than 0" << std::endl;
+      return 0;
+    } else {
+      c.shouldSubSampleReads = true;
+    }
+    if (c.ignoreEveryXReads == 0) {
+      c.shouldSubSampleReads = false;
+    } else {
+      std::cerr << "Ignoring every " << c.ignoreEveryXReads << " Reads" << std::endl;
     }
     
     // SV types to compute?
