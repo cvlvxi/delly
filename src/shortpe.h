@@ -313,15 +313,14 @@ namespace torali
 	  hts_itr_t* iter = sam_itr_queryi(idx[file_c], refIndex, vRIt->lower(), vRIt->upper());
 	  bam1_t* rec = bam_init1();
 	  int32_t lastAlignedPos = 0;
-		int readCount = 1;
 	  std::set<std::size_t> lastAlignedPosReads;
 	  while (sam_itr_next(samfile[file_c], iter, rec) >= 0) {
 	    if (rec->core.flag & (BAM_FQCFAIL | BAM_FDUP | BAM_FUNMAP)) continue;
 	    if ((rec->core.qual < c.minMapQual) || (rec->core.tid<0)) continue;
-      if (c.shouldSubSampleReads && (readCount % c.ignoreEveryXReads == 0)) continue;			
 
 	    unsigned seed = hash_string(bam_get_qname(rec));
-	    
+
+        if (c.shouldSubSampleReads && (seed % c.ignoreEveryXReads == 0)) continue;
 	    // SV detection using single-end read
 	    uint32_t rp = rec->core.pos; // reference pointer
 	    uint32_t sp = 0; // sequence pointer
@@ -416,7 +415,6 @@ namespace torali
 		++sampleLib[file_c].abnormal_pairs;
 	      }
 	    }
-			++readCount;
 	  }
 	  bam_destroy1(rec);
 	  hts_itr_destroy(iter);
