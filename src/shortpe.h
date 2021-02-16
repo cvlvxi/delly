@@ -308,6 +308,9 @@ namespace torali
 	// Intra-chromosomal mate map and alignment length
 	TMateMap mateMap;
 
+	// Shard Counter
+	int currentShardCount = 1;
+
 	// Read alignments
 	for(typename TChrIntervals::const_iterator vRIt = validRegions[refIndex].begin(); vRIt != validRegions[refIndex].end(); ++vRIt) {
 	  hts_itr_t* iter = sam_itr_queryi(idx[file_c], refIndex, vRIt->lower(), vRIt->upper());
@@ -320,7 +323,21 @@ namespace torali
 
 	    unsigned seed = hash_string(bam_get_qname(rec));
 
-//        if (c.shouldSubSampleReads && (seed % c.ignoreEveryXReads == 0)) continue;
+        if (c.shouldSubSampleReads && seed % c.shardInterval == 0) {
+            // If the shardCount equals any of the c.shardPositions then let's ignore them.
+            bool shouldIgnore = false;
+            for(const auto& shardPos : c.shardPositions) {
+                if (currentShardCount == shardPos) {
+                    shouldIgnore = true;
+                    break;
+                }
+            }
+            currentShardCount ++;
+            if (currentShardCount == c.shardInterval)
+                currentShardCount = 0;
+            if (shouldIgnore)
+                continue;
+        }
 	    // SV detection using single-end read
 	    uint32_t rp = rec->core.pos; // reference pointer
 	    uint32_t sp = 0; // sequence pointer
