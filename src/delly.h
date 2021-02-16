@@ -55,6 +55,7 @@ namespace torali
     bool shouldSubSampleReads;
     std::string shardRatio;
     std::vector<int> shardPositions;
+    int shardFraction;
     int shardInterval;
     uint16_t minMapQual;
     uint16_t minTraQual;
@@ -310,11 +311,11 @@ namespace torali
         c.shouldSubSampleReads = true;
         c.shardPositions = readPositions;
         c.shardInterval = readInterval;
-        std::cout << "Ignoring every: ";
-        for(const auto& i: c.shardPositions) {
-            std::cout << i << " ";
+        c.shardFraction = 1;
+        for(int i: c.shardPositions) {
+            c.shardFraction = c.shardFraction * i;
         }
-        std::cout << "Reads out of every " << c.shardInterval << " Reads" << '\n';
+        c.shardFraction = c.shardInterval * c.shardFraction;
     }
 
     // SV types to compute?
