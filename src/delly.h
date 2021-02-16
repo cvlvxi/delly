@@ -44,6 +44,7 @@
 #include <unistd.h>
 #include <zlib.h>
 #include <stdio.h>
+#include <string>
 
 namespace torali
 {
@@ -52,7 +53,9 @@ namespace torali
   struct Config {
     bool islr;
     bool shouldSubSampleReads;
-    int ignoreEveryXReads;
+    std::string shardRatio;
+    std::vector<int> shardPositions;
+    int shardInterval;
     uint16_t minMapQual;
     uint16_t minTraQual;
     uint16_t minGenoQual;
@@ -225,7 +228,7 @@ namespace torali
       ("min-clique-size,z", boost::program_options::value<uint32_t>(&c.minCliqueSize)->default_value(2), "min. PE/SR clique size")
       ("minrefsep,m", boost::program_options::value<uint32_t>(&c.minRefSep)->default_value(25), "min. reference separation")
       ("maxreadsep,n", boost::program_options::value<uint32_t>(&c.maxReadSep)->default_value(40), "max. read separation")
-      ("ignoreEveryXReads,i",boost::program_options::value<int>(&c.ignoreEveryXReads)->default_value(0), "Ignore every X reads")
+      ("shardratio,i",boost::program_options::value<std::string>(&c.shardRatio)->default_value("1:1"), "Select n..m reads out of every X Reads e.g. 1,2:10 means take 1 and 2 out of every 10 reads")
       ;
     
     boost::program_options::options_description geno("Genotyping options");
@@ -264,19 +267,56 @@ namespace torali
     }
 
     c.shouldSubSampleReads = false;
+    if (c.shardRatio != "1:1") {
+        char delim = ':';
+        int delimIdx = c.shardRatio.find(delim);
+        int numDelims = std::count(c.shardRatio.begin(), c.shardRatio.end(), delim);
+        if (delimIdx == std::string::npos || numDelims != 1)
+        {
+            std::cerr << "Invalid shardRatio string given." << '\n';
+            return 1;
+        }
 
-    if (c.ignoreEveryXReads < 0) {
-      std::cerr << "Error: ignoreEveryXReads should be higher than 0" << std::endl;
-      return 0;
-    } else {
-      c.shouldSubSampleReads = true;
+        std::vector<int> readPositions;
+        std::string readPositionStr = c.shardRatio.substr(0, delimIdx);
+        size_t pos = 0;
+        int readInterval;
+        try {
+            readInterval = std::stoi(c.shardRatio.substr(delimIdx+1));
+            if (readPositionStr.length() == 1) {
+                readPositions.emplace_back(std::stoi(readPositionStr));
+            } else {
+                char readPosDelim = ',';
+                std::stringstream ss(readPositionStr);
+                std::string pos;
+                while(std::getline(ss, pos, readPosDelim)) {
+                    readPositions.push_back(std::stoi(pos));
+                }
+            }
+
+            // Check that none of the positions are greater negative or greater than readInterval
+            for(const auto& i : readPositions)
+            {
+                if (i <= 0 || i > readInterval)
+                {
+                    std::cerr << "Cannot give read positions negative or greater than the read interval" << '\n';
+                    return 1;
+                }
+            }
+        } catch (...)
+        {
+            std::cerr << "Invalid shardRatio string given." << '\n';
+        }
+        c.shouldSubSampleReads = true;
+        c.shardPositions = readPositions;
+        c.shardInterval = readInterval;
+        std::cout << "Ignoring every: ";
+        for(const auto& i: c.shardPositions) {
+            std::cout << i << " ";
+        }
+        std::cout << "Reads out of every " << c.shardInterval << " Reads" << '\n';
     }
-    if (c.ignoreEveryXReads == 0) {
-      c.shouldSubSampleReads = false;
-    } else {
-      std::cerr << "Ignoring every " << c.ignoreEveryXReads << " Reads" << std::endl;
-    }
-    
+
     // SV types to compute?
     _svTypesToCompute(c, svtype, vm.count("svtype"));
     

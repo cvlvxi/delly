@@ -320,7 +320,7 @@ namespace torali
 
 	    unsigned seed = hash_string(bam_get_qname(rec));
 
-        if (c.shouldSubSampleReads && (seed % c.ignoreEveryXReads == 0)) continue;
+//        if (c.shouldSubSampleReads && (seed % c.ignoreEveryXReads == 0)) continue;
 	    // SV detection using single-end read
 	    uint32_t rp = rec->core.pos; // reference pointer
 	    uint32_t sp = 0; // sequence pointer
