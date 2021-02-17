@@ -310,10 +310,6 @@ namespace torali
 	// Intra-chromosomal mate map and alignment length
 	TMateMap mateMap;
 
-    // Shard Counter
-    int currentShardCount = 1;
-    std::vector<unsigned> seedsIgnored;
-
 	// Read alignments
 	for(typename TChrIntervals::const_iterator vRIt = validRegions[refIndex].begin(); vRIt != validRegions[refIndex].end(); ++vRIt) {
 	  hts_itr_t* iter = sam_itr_queryi(idx[file_c], refIndex, vRIt->lower(), vRIt->upper());
@@ -326,28 +322,17 @@ namespace torali
 
 	    unsigned seed = hash_string(bam_get_qname(rec));
 
-	    // Check that seed has already been added into the seedsIgnored vector and remove if so
-	    auto it = std::find(seedsIgnored.begin(), seedsIgnored.end(), seed);
-	    if (it != seedsIgnored.end()) {
-	        // Found mate so lets skip and remove it from the vector
-	        seedsIgnored.erase(it);
-	        continue;
-	    }
-
-        if (c.shouldSubSampleReads && seed % c.shardInterval == 0) {
-            // If the shardCount equals any of the c.shardPositions then let's ignore them.
-            bool shouldIgnore = false;
-            for(const auto& shardPos : c.shardPositions) {
-                if (currentShardCount == shardPos) {
-                    shouldIgnore = true;
+        if (c.shouldSubSampleReads)
+        {
+            bool shouldIgnoreRead = false;
+            for(const int& shardPos : c.shardPositions) {
+                // Check that the modulo's remainder falls within a shardposition
+                if (shardPos == (seed % c.shardInterval)) {
+                    shouldIgnoreRead = true;
                     break;
                 }
             }
-            currentShardCount ++;
-            if (currentShardCount == c.shardInterval)
-                currentShardCount = 0;
-            if (shouldIgnore) {
-                seedsIgnored.push_back(seed);
+            if (shouldIgnoreRead) {
                 continue;
             }
         }
